@@ -11,9 +11,12 @@ from the plan inline.
       every part (this edit).
 - [x] Create `frontend/AGENTS.md` describing the existing frontend code
       (structure, state model, testing setup, commands).
-- [ ] User reviews and approves this plan before Part 2 starts.
+- [x] User reviews and approves this plan before Part 2 starts. **Approved**
+      (retroactively, after Parts 2-10 were already built — see the rest of
+      this document for what shipped).
 
 **Success criteria:** user has explicitly signed off on this document.
+**Met.**
 
 ---
 
@@ -185,13 +188,16 @@ Design the persistence schema for users and their Kanban board.
       recommends a full-replace write strategy for `PUT /api/board` in
       Part 6 (delete + re-insert in one transaction) over granular
       per-field updates, given how small the board always is.
-- [ ] Get explicit user sign-off on the schema before Part 6 starts.
+- [x] Get explicit user sign-off on the schema before Part 6 starts.
+      **Approved** (retroactively, after Part 6 had already implemented it
+      unchanged from what's documented here).
 
 **Tests:** none (design-only part) — success is reviewable documentation.
 
 **Success criteria:** `docs/schema.json` and `docs/DATABASE.md` exist,
 accurately describe a schema capable of representing the current
 `BoardData` shape for multiple users, and the user has approved them.
+**Met.**
 
 ---
 
