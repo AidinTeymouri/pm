@@ -1,4 +1,11 @@
 import { expect, test } from "@playwright/test";
+import { mockAuthenticatedSession } from "./auth-helpers";
+import { mockBoardApi } from "./board-helpers";
+
+test.beforeEach(async ({ page }) => {
+  await mockAuthenticatedSession(page);
+  await mockBoardApi(page);
+});
 
 test("loads the kanban board", async ({ page }) => {
   await page.goto("/");
@@ -38,4 +45,23 @@ test("moves a card between columns", async ({ page }) => {
   );
   await page.mouse.up();
   await expect(targetColumn.getByTestId("card-card-1")).toBeVisible();
+});
+
+test("persists a change across a reload", async ({ page }) => {
+  await page.goto("/");
+  const firstColumn = page.locator('[data-testid^="column-"]').first();
+  const titleInput = firstColumn.getByLabel("Column title");
+
+  const putResponse = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/board") &&
+      response.request().method() === "PUT"
+  );
+  await titleInput.fill("Renamed via e2e");
+  await putResponse;
+
+  await page.reload();
+  await expect(
+    page.locator('[data-testid^="column-"]').first().getByLabel("Column title")
+  ).toHaveValue("Renamed via e2e");
 });

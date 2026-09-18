@@ -1,0 +1,61 @@
+{
+  "database": "sqlite",
+  "file": "backend/data/pm.db",
+  "notes": [
+    "Column/card ids are TEXT and reuse the same string ids the frontend already generates (createId() in kanban.ts, e.g. 'col-backlog', 'card-1'), so the API can return BoardData with no id-translation layer.",
+    "Exactly one board per user is enforced by the UNIQUE constraint on boards.user_id, not by application logic.",
+    "position columns hold each row's index within its parent (column position within a board, card position within a column) and reconstruct the ordering of BoardData.columns / Column.cardIds.",
+    "No indexes beyond primary/unique keys: MVP data volume is one user with one small board, so a table scan is fine.",
+    "ON DELETE CASCADE throughout: deleting a user/board/column cleans up its children, since no code path relies on orphaned rows."
+  ],
+  "tables": [
+    {
+      "name": "users",
+      "description": "One row per user. The MVP only ever creates the single hardcoded 'user' row, but the schema does not assume that.",
+      "columns": [
+        { "name": "id", "type": "INTEGER", "constraints": ["PRIMARY KEY AUTOINCREMENT"] },
+        { "name": "username", "type": "TEXT", "constraints": ["NOT NULL", "UNIQUE"] },
+        { "name": "created_at", "type": "TEXT", "constraints": ["NOT NULL", "DEFAULT (CURRENT_TIMESTAMP)"] }
+      ],
+      "create_table_sql": "CREATE TABLE users (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    username TEXT NOT NULL UNIQUE,\n    created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)\n);"
+    },
+    {
+      "name": "boards",
+      "description": "Exactly one board per user.",
+      "columns": [
+        { "name": "id", "type": "INTEGER", "constraints": ["PRIMARY KEY AUTOINCREMENT"] },
+        { "name": "user_id", "type": "INTEGER", "constraints": ["NOT NULL", "UNIQUE", "REFERENCES users(id) ON DELETE CASCADE"] },
+        { "name": "created_at", "type": "TEXT", "constraints": ["NOT NULL", "DEFAULT (CURRENT_TIMESTAMP)"] }
+      ],
+      "create_table_sql": "CREATE TABLE boards (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,\n    created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)\n);"
+    },
+    {
+      "name": "columns",
+      "description": "The Kanban columns belonging to a board, in display order. Maps to BoardData.columns.",
+      "columns": [
+        { "name": "id", "type": "TEXT", "constraints": ["PRIMARY KEY"] },
+        { "name": "board_id", "type": "INTEGER", "constraints": ["NOT NULL", "REFERENCES boards(id) ON DELETE CASCADE"] },
+        { "name": "title", "type": "TEXT", "constraints": ["NOT NULL"] },
+        { "name": "position", "type": "INTEGER", "constraints": ["NOT NULL"] }
+      ],
+      "create_table_sql": "CREATE TABLE columns (\n    id TEXT PRIMARY KEY,\n    board_id INTEGER NOT NULL REFERENCES boards(id) ON DELETE CASCADE,\n    title TEXT NOT NULL,\n    position INTEGER NOT NULL\n);"
+    },
+    {
+      "name": "cards",
+      "description": "The cards belonging to a column, in display order. Maps to BoardData.cards plus each Column.cardIds ordering.",
+      "columns": [
+        { "name": "id", "type": "TEXT", "constraints": ["PRIMARY KEY"] },
+        { "name": "column_id", "type": "TEXT", "constraints": ["NOT NULL", "REFERENCES columns(id) ON DELETE CASCADE"] },
+        { "name": "title", "type": "TEXT", "constraints": ["NOT NULL"] },
+        { "name": "details", "type": "TEXT", "constraints": ["NOT NULL", "DEFAULT ''"] },
+        { "name": "position", "type": "INTEGER", "constraints": ["NOT NULL"] }
+      ],
+      "create_table_sql": "CREATE TABLE cards (\n    id TEXT PRIMARY KEY,\n    column_id TEXT NOT NULL REFERENCES columns(id) ON DELETE CASCADE,\n    title TEXT NOT NULL,\n    details TEXT NOT NULL DEFAULT '',\n    position INTEGER NOT NULL\n);"
+    }
+  ],
+  "relationships": [
+    { "from": "boards.user_id", "to": "users.id", "type": "one-to-one", "note": "UNIQUE on boards.user_id enforces one board per user" },
+    { "from": "columns.board_id", "to": "boards.id", "type": "many-to-one" },
+    { "from": "cards.column_id", "to": "columns.id", "type": "many-to-one" }
+  ]
+}
