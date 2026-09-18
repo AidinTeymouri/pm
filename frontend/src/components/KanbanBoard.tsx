@@ -13,6 +13,7 @@ import {
 } from "@dnd-kit/core";
 import { KanbanColumn } from "@/components/KanbanColumn";
 import { KanbanCardPreview } from "@/components/KanbanCardPreview";
+import { ChatSidebar } from "@/components/ChatSidebar";
 import { createId, moveCard, type BoardData } from "@/lib/kanban";
 import { fetchBoard, saveBoard, UnauthorizedError } from "@/lib/board-api";
 
@@ -29,6 +30,7 @@ export const KanbanBoard = ({ onLogout, onSessionExpired }: KanbanBoardProps) =>
   const [saveError, setSaveError] = useState<string | null>(null);
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const [retryToken, setRetryToken] = useState(0);
+  const [chatOpen, setChatOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -145,6 +147,10 @@ export const KanbanBoard = ({ onLogout, onSessionExpired }: KanbanBoardProps) =>
     }));
   };
 
+  const handleChatBoardUpdate = (updated: BoardData) => {
+    setBoard(updated);
+  };
+
   if (status === "loading") {
     return (
       <main className="flex min-h-screen items-center justify-center">
@@ -200,13 +206,22 @@ export const KanbanBoard = ({ onLogout, onSessionExpired }: KanbanBoardProps) =>
               )}
             </div>
             <div className="flex flex-col items-end gap-3">
-              <button
-                type="button"
-                onClick={onLogout}
-                className="rounded-full border border-[var(--stroke)] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--gray-text)] transition hover:text-[var(--navy-dark)]"
-              >
-                Log out
-              </button>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setChatOpen(true)}
+                  className="rounded-full bg-[var(--secondary-purple)] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white transition hover:brightness-110"
+                >
+                  Chat with AI
+                </button>
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  className="rounded-full border border-[var(--stroke)] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--gray-text)] transition hover:text-[var(--navy-dark)]"
+                >
+                  Log out
+                </button>
+              </div>
               <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] px-5 py-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--gray-text)]">
                   Focus
@@ -257,6 +272,13 @@ export const KanbanBoard = ({ onLogout, onSessionExpired }: KanbanBoardProps) =>
           </DragOverlay>
         </DndContext>
       </main>
+
+      <ChatSidebar
+        open={chatOpen}
+        onClose={() => setChatOpen(false)}
+        onBoardUpdate={handleChatBoardUpdate}
+        onSessionExpired={onSessionExpired}
+      />
     </div>
   );
 };

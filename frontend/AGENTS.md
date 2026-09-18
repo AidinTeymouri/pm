@@ -1,9 +1,10 @@
 # Frontend
 
 Next.js 16 / React 19 app (App Router, Tailwind v4, `@dnd-kit`). The app
-gates access behind the backend's hardcoded-user login (Part 4) and the
-Kanban board is now fully backed by the real API (Part 7 of `docs/PLAN.md`)
-— see `docs/PLAN.md` for where this fits in the overall build.
+gates access behind the backend's hardcoded-user login (Part 4), the Kanban
+board is fully backed by the real API (Part 7), and a chat sidebar lets the
+user talk to the AI about their board and see its edits applied live
+(Part 10) — see `docs/PLAN.md` for where this fits in the overall build.
 
 `next.config.ts` sets `output: "export"`: `npm run build` produces a static
 `out/` directory (no Node server needed at runtime). The root `Dockerfile`
@@ -43,7 +44,11 @@ middleware) — those aren't compatible with static export.
   rolls back to the pre-update board and shows an inline "Failed to save
   your change" message; on `UnauthorizedError` (session expired mid-session)
   it calls the `onSessionExpired` prop instead of showing an error. Renders
-  a `DragOverlay` with `KanbanCardPreview` for the card being dragged.
+  a `DragOverlay` with `KanbanCardPreview` for the card being dragged. Also
+  owns a `chatOpen` boolean toggled by the "Chat with AI" header button, and
+  renders `ChatSidebar` with `onBoardUpdate` wired straight to `setBoard` —
+  the AI's board edits land in the same state the board itself renders from,
+  no separate sync path.
   Note: `KanbanColumn`'s rename input persists on every keystroke (one
   `saveBoard` call per character, not debounced) — a pre-existing pattern
   from when this was local-only state, now with a real network cost. A
@@ -65,6 +70,23 @@ middleware) — those aren't compatible with static export.
 - `src/components/LoginForm.tsx` — the login screen: controlled
   username/password inputs, calls `login`, shows an inline error on failure,
   calls `onSuccess()` on success. No routing involved.
+- `src/lib/ai-chat.ts` — thin `fetch` wrapper around `POST /api/ai/chat`,
+  mirroring `board-api.ts`'s shape: `sendChatMessage(message, history)`
+  throws the shared `UnauthorizedError` (imported from `board-api.ts`) on a
+  401, a generic `Error` otherwise, and resolves `{reply, board_update}`.
+- `src/components/ChatSidebar.tsx` — the AI chat sidebar. Owns its own
+  `messages`/`input`/`sending`/`error` state (conversation history is
+  client-managed per Part 9 — resent as `history` on every call, with the
+  new message sent separately). Stays mounted at all times and slides in/out
+  via a CSS transform keyed off the `open` prop (rather than conditionally
+  rendering), so the transcript survives closing and reopening the sidebar.
+  On a successful reply with a non-null `board_update`, calls the
+  `onBoardUpdate` prop with it directly — no `GET /api/board` refetch, since
+  the chat endpoint already returns the exact board it just persisted. A
+  failed request shows an inline error but leaves the user's message in the
+  transcript (nothing is rolled back — chat turns aren't optimistic in the
+  way board edits are). A 401 calls `onSessionExpired` like the board fetches
+  do.
 - `src/app/page.tsx` — the auth gate and only route. On mount, calls
   `fetchSession()`; renders a loading state, then either `LoginForm` (not
   authenticated) or `KanbanBoard` (authenticated, with `onLogout` — calls
@@ -85,25 +107,32 @@ board) and flows down via props.
 
 - Vitest (`vitest.config.ts`): unit/component tests under
   `src/**/*.{test,spec}.{ts,tsx}`, jsdom + `@testing-library/react`, setup at
-  `src/test/setup.ts`. Covers `kanban.ts`, `auth.ts`/`board-api.ts` (fetch
-  mocked via `vi.stubGlobal`), `LoginForm`, `KanbanBoard` (`fetchBoard`/
-  `saveBoard` mocked via `vi.spyOn` on the `board-api` module — covers
-  loading/error/retry, optimistic update + rollback on a failed save, and
-  `onSessionExpired` on a 401), and `page.tsx` (the auth gate, with
+  `src/test/setup.ts`. Covers `kanban.ts`, `auth.ts`/`board-api.ts`/
+  `ai-chat.ts` (fetch mocked via `vi.stubGlobal`), `LoginForm`, `ChatSidebar`
+  (`sendChatMessage` mocked via `vi.spyOn` on the `ai-chat` module),
+  `KanbanBoard` (`fetchBoard`/`saveBoard` mocked via `vi.spyOn` on the
+  `board-api` module — covers loading/error/retry, optimistic update +
+  rollback on a failed save, `onSessionExpired` on a 401, opening/closing the
+  chat sidebar, and a chat `board_update` landing in the rendered board
+  without an extra `fetchBoard` call), and `page.tsx` (the auth gate, with
   `fetchSession`/`logout` mocked via `vi.spyOn`).
 - Playwright (`playwright.config.ts`): e2e specs under `tests/`
-  (`kanban.spec.ts`, `auth.spec.ts`), auto-starts the dev server on
-  `127.0.0.1:3000`. Since `next dev` has no real backend attached, both specs
-  mock the `/api/*` routes via `page.route` — see `tests/auth-helpers.ts`
-  (`mockAuthenticatedSession`/`mockUnauthenticatedSession`) and
-  `tests/board-helpers.ts` (`mockBoardApi` — a small stateful GET/PUT mock
-  of `/api/board`, seeded with the same data as `initialData`/
-  `INITIAL_BOARD`, so `kanban.spec.ts`'s reload test can verify a change
-  round-trips through a PUT and comes back on the next GET). Real
-  frontend+backend integration (actual cookies, actual FastAPI session and
-  SQLite persistence, including surviving a full container restart) is
-  verified manually against the Docker container, not automated here — see
-  the Part 4 and Part 7 entries in `docs/PLAN.md` for what was checked.
+  (`kanban.spec.ts`, `auth.spec.ts`, `chat.spec.ts`), auto-starts the dev
+  server on `127.0.0.1:3000`. Since `next dev` has no real backend attached,
+  all three mock the `/api/*` routes via `page.route` — see
+  `tests/auth-helpers.ts` (`mockAuthenticatedSession`/
+  `mockUnauthenticatedSession`), `tests/board-helpers.ts` (`mockBoardApi` — a
+  small stateful GET/PUT mock of `/api/board`, seeded with `defaultBoard`
+  (exported for reuse), so `kanban.spec.ts`'s reload test can verify a
+  change round-trips through a PUT and comes back on the next GET), and
+  `chat.spec.ts` (mocks `/api/ai/chat` to return a `board_update` built from
+  `defaultBoard`, then asserts the moved card shows up in its new column
+  with no reload). Real frontend+backend integration (actual cookies, actual
+  FastAPI session and SQLite persistence, including surviving a full
+  container restart, and — for Part 10 — a real chat round trip against the
+  live OpenRouter model) is verified manually against the real backend/
+  Docker container, not automated here — see the Part 4, Part 7, and Part 10
+  entries in `docs/PLAN.md` for what was checked.
 
 ## Commands
 

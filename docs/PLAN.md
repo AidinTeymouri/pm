@@ -441,23 +441,54 @@ rather than guessed at:
 
 Add the chat UI and wire it to auto-refresh the board on AI-driven updates.
 
-- [ ] A sidebar component (matching the existing color scheme) with a
+- [x] A sidebar component (matching the existing color scheme) with a
       message list and input, calling `/api/ai/chat` and appending to
-      conversation history client-side (or fetching history from the
-      backend, whichever Part 9 settled on).
-- [ ] Loading/error states while waiting on the AI response.
-- [ ] When a response includes a board update, refetch/re-render the board
+      conversation history client-side (Part 9 settled on client-managed
+      history — there's no conversations/messages table). (`ChatSidebar.tsx`;
+      `src/lib/ai-chat.ts` is the thin `fetch` wrapper, mirroring
+      `board-api.ts`'s pattern including `UnauthorizedError` on a 401.)
+- [x] Loading/error states while waiting on the AI response. (A "Thinking..."
+      indicator while a request is in flight, and an inline error banner on
+      failure — the failed user message stays in the transcript so it's
+      obvious what didn't get a reply, and the user can just retry.)
+- [x] When a response includes a board update, refetch/re-render the board
       (`GET /api/board`) so the UI reflects the AI's change without a manual
-      page reload.
-- [ ] Sidebar can be opened/closed without disrupting board state.
+      page reload. (Deviation: applies `board_update` directly to
+      `KanbanBoard`'s local state instead of issuing a `GET /api/board`
+      refetch. The chat endpoint already returns the exact board it just
+      persisted via `write_board`, so a refetch would be a redundant round
+      trip for the same data — same result, one less network call.)
+- [x] Sidebar can be opened/closed without disrupting board state. (`chatOpen`
+      boolean in `KanbanBoard`; `ChatSidebar` stays mounted and slides via a
+      CSS transform rather than unmounting, so board state — and the chat
+      transcript itself — survive a close/reopen.)
 
 **Tests:**
-- Frontend component tests: sending a message renders the reply; a mocked
+- [x] Frontend component tests: sending a message renders the reply; a mocked
   response containing a board update triggers a board refetch/rerender.
-- E2E: open the chat, ask the AI to modify the board (e.g. "move card X to
+  `ChatSidebar.test.tsx` (7 tests) covers the component in isolation
+  (empty-state hint, send + reply, `board_update` triggers `onBoardUpdate`,
+  error handling keeps the user's message, 401 calls `onSessionExpired`,
+  close button); `KanbanBoard.test.tsx` gained 2 tests wiring it end-to-end
+  (opening chat and applying a board update updates the rendered board
+  without calling `fetchBoard` again; closing the sidebar). `ai-chat.test.ts`
+  (3 tests) covers the fetch wrapper itself. 39/39 frontend unit tests pass.
+- [x] E2E: open the chat, ask the AI to modify the board (e.g. "move card X to
   Done"), confirm the reply appears and the board visibly updates without a
-  manual reload.
+  manual reload. `tests/chat.spec.ts`, mocking `/api/ai/chat` against `next
+  dev` (matching the existing e2e pattern); `board-helpers.ts`'s
+  `defaultBoard` is now exported so the spec can build a realistic
+  `board_update`. 8/8 e2e tests pass (7 existing + 1 new).
+- [x] Manual full-stack verification against the real backend and a live
+  OpenRouter call (built the frontend, served it from `uv run uvicorn`, a
+  throwaway Playwright script against `http://localhost:8000`, deleted after
+  the run): logged in, opened the chat, asked a no-change question ("what
+  columns do I have?") and got a correct conversational reply, then asked it
+  to rename the Backlog column — the reply confirmed the change and the
+  board's column title updated in the UI immediately, with no page reload.
 
 **Success criteria:** a user can chat with the AI about their board and see
 it make live edits (new/edited/moved cards) reflected immediately in the
-Kanban UI, with no manual refresh needed.
+Kanban UI, with no manual refresh needed. **Met** — 39/39 frontend unit
+tests, 8/8 e2e tests, 35/35 backend tests (unchanged), plus the manual
+full-stack check above against the real model.

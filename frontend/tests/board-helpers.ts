@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 
-const defaultBoard = {
+export const defaultBoard = {
   columns: [
     { id: "col-backlog", title: "Backlog", cardIds: ["card-1", "card-2"] },
     { id: "col-discovery", title: "Discovery", cardIds: ["card-3"] },

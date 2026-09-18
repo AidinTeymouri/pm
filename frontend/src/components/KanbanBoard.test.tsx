@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { KanbanBoard } from "@/components/KanbanBoard";
 import { initialData } from "@/lib/kanban";
 import * as boardApi from "@/lib/board-api";
+import * as aiChat from "@/lib/ai-chat";
 
 const getFirstColumn = () => screen.getAllByTestId(/column-/i)[0];
 
@@ -138,5 +139,40 @@ describe("KanbanBoard", () => {
     fireEvent.change(input, { target: { value: "Renamed" } });
 
     await waitFor(() => expect(onSessionExpired).toHaveBeenCalledTimes(1));
+  });
+
+  it("opens the chat sidebar and applies a board update from the AI without a refetch", async () => {
+    const updatedBoard = cloneBoard();
+    updatedBoard.columns[0] = {
+      ...updatedBoard.columns[0],
+      title: "Renamed By AI",
+    };
+    vi.spyOn(aiChat, "sendChatMessage").mockResolvedValue({
+      reply: "Renamed it for you.",
+      board_update: updatedBoard,
+    });
+    await renderBoard();
+
+    await userEvent.click(screen.getByRole("button", { name: /chat with ai/i }));
+    await userEvent.type(screen.getByLabelText("Chat message"), "rename it");
+    await userEvent.click(screen.getByRole("button", { name: /send/i }));
+
+    expect(await screen.findByDisplayValue("Renamed By AI")).toBeInTheDocument();
+    expect(boardApi.fetchBoard).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes the chat sidebar", async () => {
+    await renderBoard();
+    await userEvent.click(screen.getByRole("button", { name: /chat with ai/i }));
+    expect(screen.getByTestId("chat-sidebar")).toHaveAttribute(
+      "aria-hidden",
+      "false"
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: /close chat/i }));
+    expect(screen.getByTestId("chat-sidebar")).toHaveAttribute(
+      "aria-hidden",
+      "true"
+    );
   });
 });
