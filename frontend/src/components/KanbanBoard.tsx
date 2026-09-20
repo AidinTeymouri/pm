@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -26,6 +26,8 @@ type KanbanBoardProps = {
 
 type LoadStatus = "loading" | "ready" | "error";
 
+const RENAME_DEBOUNCE_MS = 400;
+
 export const KanbanBoard = ({ onLogout, onSessionExpired }: KanbanBoardProps) => {
   const [board, setBoard] = useState<BoardData | null>(null);
   const [status, setStatus] = useState<LoadStatus>("loading");
@@ -33,6 +35,16 @@ export const KanbanBoard = ({ onLogout, onSessionExpired }: KanbanBoardProps) =>
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const [retryToken, setRetryToken] = useState(0);
   const [chatOpen, setChatOpen] = useState(false);
+  const renameDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const renameBaselineRef = useRef<BoardData | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (renameDebounceRef.current) {
+        clearTimeout(renameDebounceRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -111,12 +123,31 @@ export const KanbanBoard = ({ onLogout, onSessionExpired }: KanbanBoardProps) =>
   };
 
   const handleRenameColumn = (columnId: string, title: string) => {
-    updateBoard((prev) => ({
-      ...prev,
-      columns: prev.columns.map((column) =>
-        column.id === columnId ? { ...column, title } : column
-      ),
-    }));
+    setBoard((prev) => {
+      if (!prev) return prev;
+      if (!renameBaselineRef.current) {
+        renameBaselineRef.current = prev;
+      }
+
+      const next = {
+        ...prev,
+        columns: prev.columns.map((column) =>
+          column.id === columnId ? { ...column, title } : column
+        ),
+      };
+
+      if (renameDebounceRef.current) {
+        clearTimeout(renameDebounceRef.current);
+      }
+      renameDebounceRef.current = setTimeout(() => {
+        const baseline = renameBaselineRef.current ?? next;
+        renameBaselineRef.current = null;
+        renameDebounceRef.current = null;
+        persistBoard(baseline, next);
+      }, RENAME_DEBOUNCE_MS);
+
+      return next;
+    });
   };
 
   const handleAddCard = (columnId: string, title: string, details: string) => {

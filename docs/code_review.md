@@ -65,7 +65,7 @@ required. Verified: `npm run lint`, `npx vitest run` (39/39), `npm run
 build`, and `npx playwright test tests/kanban.spec.ts` (pointer-based
 drag e2e, 4/4) all still pass.
 
-### 3. `tsc --noEmit` fails on every test file (Low, latent)
+### 3. `tsc --noEmit` fails on every test file (Low, latent) — Fixed
 
 `npx tsc --noEmit` reports ~35 errors, all `Cannot find name 'describe' /
 'it' / 'expect' / 'vi'` in `*.test.ts(x)` files. Root cause:
@@ -84,7 +84,11 @@ on every test file.
 `vitest.d.ts` (or `"types": ["vitest/globals"]` in `tsconfig.json`) so a
 future standalone typecheck step doesn't break on day one.
 
-### 4. Rename input fires a network write per keystroke (Low, already known)
+**Resolved:** `vitest.d.ts` now references `types="vitest/globals"` instead
+of plain `types="vitest"`. `npx tsc --noEmit` now exits clean with no
+output (previously ~35 errors).
+
+### 4. Rename input fires a network write per keystroke (Low, already known) — Fixed
 
 `frontend/src/components/KanbanColumn.tsx:42-47`'s title `<input>` calls
 `onRename` on every `onChange`, and `KanbanBoard.tsx:108-115`'s
@@ -99,7 +103,15 @@ successful save.
 **Action:** debounce the rename save (e.g. ~400ms) rather than firing on
 every keystroke. Low priority — not causing observed problems.
 
-### 5. MVP-scoped auth hardening gaps (Low, by design)
+**Resolved:** `KanbanBoard.tsx`'s `handleRenameColumn` now updates local
+state immediately (so the input stays responsive) but debounces the actual
+`saveBoard` call by 400ms, coalescing a burst of keystrokes into one PUT.
+It also fixes the previously-noted rollback race: on a failed save it now
+reverts to the board state from *before the whole typing burst started*
+(tracked via a ref, cleared once a debounced save is issued), not just the
+immediately-preceding keystroke's snapshot.
+
+### 5. MVP-scoped auth hardening gaps (Low, by design) — Not changed, on purpose
 
 Three small items in `backend/app/auth.py` and `backend/app/main.py`, all
 consistent with "single hardcoded local user" being an explicit MVP
@@ -119,7 +131,7 @@ these three are the first things to revisit — none of them are appropriate
 to fix speculatively right now per the "no unnecessary defensive
 programming" standard in CLAUDE.md.
 
-### 6. `frontend/README.md` is unmodified `create-next-app` boilerplate (Low)
+### 6. `frontend/README.md` is unmodified `create-next-app` boilerplate (Low) — Fixed
 
 It's 15 lines of generic run/test commands and doesn't mention the backend,
 Docker, or auth — while `frontend/AGENTS.md` already documents all of that
@@ -127,6 +139,9 @@ in depth. Not actively wrong, just redundant/thin next to the AGENTS.md file.
 
 **Action:** either trim it further (point to `frontend/AGENTS.md` and the
 root `CLAUDE.md`) or leave as-is — low priority, not blocking anything.
+
+**Resolved:** trimmed to a short pointer at `frontend/AGENTS.md` and the
+root `CLAUDE.md`, plus the same run/test commands it had before.
 
 ## Explicitly checked and found fine (no action needed)
 

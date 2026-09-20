@@ -1,5 +1,9 @@
 # Kanban Studio
 
+Next.js frontend for the Project Management MVP. See `AGENTS.md` in this
+directory for structure and testing details, and the root `CLAUDE.md` /
+`docs/PLAN.md` for the project as a whole.
+
 ## Run
 
 ```bash
