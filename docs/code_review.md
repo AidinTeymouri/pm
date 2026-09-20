@@ -16,7 +16,7 @@ are mostly documentation drift, MVP-scoped hardening, and small polish items.
 
 ## Findings
 
-### 1. CLAUDE.md's "Project state" section is stale (High — fix first)
+### 1. CLAUDE.md's "Project state" section is stale (High — fix first) — Fixed
 
 `CLAUDE.md:9-10` still says: *"Only the frontend demo exists so far (Parts
 1-3 of the plan below); `backend/` and `scripts/` are empty placeholders
@@ -34,6 +34,10 @@ already has 35 passing tests.
 **Action:** rewrite the "Project state" paragraph to reflect that Parts 1-10
 are complete, and point to `docs/PLAN.md` for the checklist/history instead
 of restating it.
+
+**Resolved:** rewrote the "Project state" paragraph, plus the Commands and
+Architecture sections (which had the same drift — missing backend commands,
+and component descriptions still saying "no backend calls yet").
 
 ### 2. No keyboard support for drag-and-drop (Medium) — Fixed
 
