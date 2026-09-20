@@ -35,7 +35,7 @@ already has 35 passing tests.
 are complete, and point to `docs/PLAN.md` for the checklist/history instead
 of restating it.
 
-### 2. No keyboard support for drag-and-drop (Medium)
+### 2. No keyboard support for drag-and-drop (Medium) — Fixed
 
 `frontend/src/components/KanbanBoard.tsx:60-64` wires only a `PointerSensor`
 into `useSensors`:
@@ -55,6 +55,15 @@ or touch pointer — there's no way to do it via keyboard alone.
 
 **Action:** add `KeyboardSensor` alongside `PointerSensor`, or explicitly
 note this as an accepted MVP limitation if keyboard support is out of scope.
+
+**Resolved:** `KanbanBoard.tsx` now registers `KeyboardSensor` (with
+`sortableKeyboardCoordinates` from `@dnd-kit/sortable`) alongside
+`PointerSensor`. `KanbanCard`'s draggable element already spread
+`useSortable`'s `attributes`/`listeners`, which provide the
+focus/keydown wiring dnd-kit needs, so no other component changes were
+required. Verified: `npm run lint`, `npx vitest run` (39/39), `npm run
+build`, and `npx playwright test tests/kanban.spec.ts` (pointer-based
+drag e2e, 4/4) all still pass.
 
 ### 3. `tsc --noEmit` fails on every test file (Low, latent)
 
