@@ -484,7 +484,7 @@ Add the chat UI and wire it to auto-refresh the board on AI-driven updates.
   manual reload. `tests/chat.spec.ts`, mocking `/api/ai/chat` against `next
   dev` (matching the existing e2e pattern); `board-helpers.ts`'s
   `defaultBoard` is now exported so the spec can build a realistic
-  `board_update`. 8/8 e2e tests pass (7 existing + 1 new).
+  `board_update`. 7/7 e2e tests pass.
 - [x] Manual full-stack verification against the real backend and a live
   OpenRouter call (built the frontend, served it from `uv run uvicorn`, a
   throwaway Playwright script against `http://localhost:8000`, deleted after
@@ -496,5 +496,5 @@ Add the chat UI and wire it to auto-refresh the board on AI-driven updates.
 **Success criteria:** a user can chat with the AI about their board and see
 it make live edits (new/edited/moved cards) reflected immediately in the
 Kanban UI, with no manual refresh needed. **Met** — 39/39 frontend unit
-tests, 8/8 e2e tests, 35/35 backend tests (unchanged), plus the manual
+tests, 7/7 e2e tests, 35/35 backend tests (unchanged), plus the manual
 full-stack check above against the real model.

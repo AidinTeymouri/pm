@@ -171,6 +171,6 @@ root `CLAUDE.md`, plus the same run/test commands it had before.
 - **Single read/write path:** `load_board`/`write_board` in
   `backend/app/board.py` are called by both the REST board routes and
   `backend/app/ai.py`'s chat endpoint — no duplicated persistence logic.
-- **Test coverage:** 35/35 backend tests, 39/39 frontend unit tests, 8/8 (per
-  `docs/PLAN.md`) e2e tests all currently pass; lint is clean; `next build`
+- **Test coverage:** 35/35 backend tests, 39/39 frontend unit tests, 7/7
+  e2e tests all currently pass; lint is clean; `next build`
   type-checks and builds cleanly.
